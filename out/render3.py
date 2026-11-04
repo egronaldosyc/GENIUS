@@ -64,7 +64,8 @@ def _load(path, key, fn=None):
     return im
 def cframe(t):
     i = int(np.clip(round(t * 30), 0, 4518))
-    return _load(os.path.join(HERE, 'fc', f'{i+1:05d}.jpg'), ('c', i), lambda im: cv2.resize(im, (W, H), interpolation=cv2.INTER_CUBIC))
+    return _load(os.path.join(HERE, 'fc', f'{i+1:05d}.jpg'), ('c', i), lambda im: cv2.resize(cv2.inpaint(im, LOGO_C, 4, cv2.INPAINT_TELEA), (W, H), interpolation=cv2.INTER_CUBIC))
+LOGO_C = np.zeros((624, 352), np.uint8); LOGO_C[16:46, 16:52] = 255
 def aframe(t):
     i = int(np.clip(round(t * 30), 0, 608)); return _load(os.path.join(HERE, 'fa', f'{i+1:04d}.jpg'), ('a', i))
 def eframe(t):

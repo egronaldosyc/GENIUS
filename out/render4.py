@@ -61,11 +61,17 @@ SUBLIM = [STARTS['p0739'] + 3.3, STARTS['die'] + 2.2, STARTS['lunch'] + 4.5, STA
 
 # ---------------- sources ----------------
 _cache = {}
+LOGO_M = np.zeros((626, 352), np.uint8); LOGO_M[34:74, 0:32] = 255
+KRUG = [(0, 19.0), (114.0, 128.0), (195.0, 224.0)]
+_yy, _xx = np.mgrid[0:626, 0:352]
+KRUG_M = cv2.GaussianBlur((((_xx - 176) ** 2 + (_yy - 314) ** 2) < 168 ** 2).astype(np.float32), (5, 5), 0)[..., None]
 def c2(t):
     i = int(np.clip(round(t * 30), 0, 7438)); k = ('c2', i)
     if k not in _cache:
         if len(_cache) > 200: _cache.pop(next(iter(_cache)))
         im = cv2.cvtColor(cv2.imread(os.path.join(HERE, 'fc', f'{i+1:05d}.jpg')), cv2.COLOR_BGR2RGB)
+        im = cv2.inpaint(im, LOGO_M, 4, cv2.INPAINT_TELEA)
+        if any(a <= t < b for a, b in KRUG): im = (im * KRUG_M).astype(np.uint8)
         _cache[k] = cv2.resize(im, (W, H), interpolation=cv2.INTER_CUBIC)
     return _cache[k]
 POST = {k: Image.open(os.path.join(HERE, 'posts', k + '.png')).convert('RGB') for k in ['p0833', 'p1243', 'p1453', 'p1949', 'p1950', 'p2237', 'p2355']}
