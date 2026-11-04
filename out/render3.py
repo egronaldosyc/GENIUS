@@ -24,6 +24,9 @@ SEGS = [('open', 3.6), ('morning', 6.0), ('skuchno', 2.0), ('lunch', 7.7), ('spo
 STARTS = {}; _t = 0
 for k, d in SEGS: STARTS[k] = _t; _t += d
 T_END = _t; N = int(round(T_END * FPS))
+SCREAMS = [('c_title', 3.18, 0.32, 'selfie'), ('c_walk', 2.18, 0.32, 'v1'), ('c_mono', 6.5, 0.4, 'mono'),
+           ('c_selfie', 3.15, 0.35, 'selfie2'), ('c_sub', 2.25, 0.35, 'sub'), ('c_fridge', 2.12, 0.38, 'bill')]
+SCREAMS = [(STARTS[k] + a, d, src) for k, a, d, src in SCREAMS]
 def seg_at(t):
     for k, d in SEGS:
         if t < STARTS[k] + d: return k, t - STARTS[k], d
@@ -214,6 +217,43 @@ def stamp(c, txt, cx, cy, tl, t0, rot=-12, col=(230, 20, 40), size=64):
 
 def hearts(c, tl, n, seed):
     R.rain(c, tl + 0.0, 0, 1.4, [EMO['❤️'], EMO['👍'], EMO['❤️']], n, seed, (60, 120), (-1800, -1000))
+
+_sfaces = {}
+def face_of(img, key):
+    if key in _sfaces: return _sfaces[key]
+    g = cv2.cvtColor(cv2.resize(img, (360, 640)), cv2.COLOR_RGB2GRAY); g = cv2.equalizeHist(g)
+    fs = R.CASC.detectMultiScale(g, 1.1, 4, minSize=(70, 70))
+    if len(fs):
+        x, y, w, h = [v * 2 for v in max(fs, key=lambda f: f[2] * f[3])]
+    else:
+        x, y, w, h = W * 0.25, H * 0.25, W * 0.5, W * 0.5
+    r = ([(x + .32 * w, y + .42 * h), (x + .68 * w, y + .42 * h)], (x + .5 * w, y + .8 * h), w)
+    _sfaces[key] = r; return r
+def scream_base(src):
+    if src == 'selfie': return IMG_SELFIE, (SEYE, SMOUTH, 320)
+    if src == 'selfie2': return IMG_SELFIE, (SEYE, SMOUTH, 320)
+    if src == 'v1': b = v1frame(1.1)
+    elif src == 'mono': b = cframe(38.6)
+    elif src == 'sub': b = cframe(98.3)
+    else: b = IMG_BILL
+    return b, face_of(b, src)
+def screamer(t, ts, d, src, rng):
+    u = (t - ts) / d
+    base, (eyes, mouth, fw) = scream_base(src)
+    img = warp_face(base, eyes, mouth, 0.55, 1.9, eye_r=fw * 0.17)
+    img = black_eyes(img, eyes, fw * 0.11)
+    cx = (eyes[0][0] + eyes[1][0]) / 2; cy = (eyes[0][1] + mouth[1]) / 2
+    z = 1.35 + 1.6 * u ** 0.7
+    img = zoomc(img, z, cx, cy, W / 2 - cx + rng.uniform(-40, 40), H / 2 - cy + rng.uniform(-40, 40), rng.uniform(-6, 6))
+    x = img.astype(np.float32); g = x.mean(2, keepdims=True)
+    x = np.clip((g - 90) * 2.4 + 110, 0, 255)
+    if int(t * 30) % 2: x = np.concatenate([x * 1.25, x * 0.15, x * 0.15], 2)
+    else: x = np.concatenate([x, x * 0.85, x * 0.85], 2)
+    img = np.clip(x, 0, 255).astype(np.uint8)
+    img = rgbsplit(glitch_slices(img, rng, 12, 150), 35)
+    c = P(img)
+    if u < 0.12: flash(c, 1 - u / 0.12)
+    return c
 
 # ---------------- VIDEO ----------------
 def render(fi):
@@ -554,6 +594,9 @@ def render(fi):
             else:
                 flash(c, (0.5 - (dur - tl)) / 0.32, (0, 0, 0))
 
+    for ts, d, src in SCREAMS:
+        if ts <= t < ts + d: c = screamer(t, ts, d, src, rng)
+    if key == 'c_znaesh' and tl < 0.3: c = screamer(t, STARTS['c_znaesh'], 0.3, 'v1' if False else 'mono', rng) if tl < 0.12 else c
     return np.array(c.convert('RGB'))
 
 # ---------------- AUDIO ----------------
@@ -714,6 +757,23 @@ def build_audio(out):
     add(S['f_like'], clip('c', 23.1, 24.7), 1.2)
     add(S['f_end'] + 2.22, stab()[:8000], 0.6)
     add(S['f_end'] + 2.2, reverb(VO['w3'], 0.6), 0.9)
+    # ===== SCREAMERS: dip everything right before, then scream =====
+    def scream(d):
+        t = tt(d + 0.25)
+        f = 620 + 380 * np.minimum(1, t / d) + 45 * np.sin(2 * np.pi * 7.5 * t)
+        ph = 2 * np.pi * np.cumsum(f) / SR
+        x = sum(((ph * m) % (2 * np.pi)) / np.pi - 1 for m in (1, 1.49, 2.03, 2.97)) * 0.3
+        x += rng.standard_normal(len(t)) * 0.7
+        env = np.minimum(1, t / 0.004) * np.clip((d + 0.25 - t) / 0.2, 0, 1)
+        return np.tanh(5 * x * env).astype(np.float32)
+    e_rev = clip('e', 0.82, 1.27)[::-1].copy()
+    for ts, d, src in SCREAMS + [(S['c_znaesh'], 0.3, '')]:
+        i0, i1 = int((ts - 0.45) * SR), int(ts * SR)
+        mix[i0:i1] *= np.linspace(1, 0.08, i1 - i0) ** 0.5
+        add(ts, scream(d), 0.75)
+        add(ts, boom(0.8, 200), 0.8)
+        er = np.interp(np.arange(0, len(e_rev), 1.6), np.arange(len(e_rev)), e_rev).astype(np.float32)
+        add(ts, np.tanh(4 * er), 0.5)
     mix = mix[:int(T_END * SR)]
     mix = np.tanh(mix * 1.05) * 0.93
     st = (np.repeat(mix[:, None], 2, 1) * 32767).astype(np.int16)
