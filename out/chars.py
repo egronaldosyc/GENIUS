@@ -17,6 +17,10 @@ CHAR = {
     'Илья':   dict(col=(170, 110, 255), hair=(60, 40, 30), hs='curly', skin=2, glasses=False, acc=None, prop=None, ghost=True),
     'Юрий':   dict(col=(255, 150, 60), hair=(200, 170, 110), hs='short', skin=5, glasses=True, acc=None, prop='flag'),
     'Коля':   dict(col=(60, 210, 200), hair=(35, 30, 30), hs='side', skin=6, glasses=False, acc='cap', prop='key'),
+    'Анфиса': dict(col=(255, 160, 120), hair=(40, 28, 24), hs='long', skin=3, glasses=False, acc='lips', prop='can'),
+    'Полина': dict(col=(255, 130, 200), hair=(200, 140, 70), hs='bob', skin=0, glasses=False, acc='lips', prop='wine'),
+    'Настя':  dict(col=(200, 160, 255), hair=(30, 24, 30), hs='pony', skin=5, glasses=False, acc='lips', prop='phone'),
+    'Раед':   dict(col=(200, 200, 210), hair=(25, 20, 18), hs='short', skin=4, glasses=False, acc='beard', prop=None),
 }
 
 _pc = {}
@@ -56,6 +60,12 @@ def head_im(name, blink=0.0, mouth='smile', look=0.0):
     im = _canvas(180, 190); d = ImageDraw.Draw(im)
     cx, cy, r = 90, 108, 62
     hs = c['hs']
+    if hs == 'long':
+        d.rounded_rectangle(S(cx - r - 14, cy - r - 8, cx + r + 14, cy + 82), 50 * SS, fill=hair, outline=OUT, width=4 * SS)
+    elif hs == 'bob':
+        d.rounded_rectangle(S(cx - r - 12, cy - r - 8, cx + r + 12, cy + 44), 44 * SS, fill=hair, outline=OUT, width=4 * SS)
+    elif hs == 'pony':
+        d.ellipse(S(cx + r - 10, cy - 40, cx + r + 40, cy + 40), fill=hair, outline=OUT, width=4 * SS)
     if hs in ('mop', 'curly'):  # back hair
         d.ellipse(S(cx - r - 8, cy - r - 10, cx + r + 8, cy + r - 10), fill=hair, outline=OUT, width=4 * SS)
     # ears
@@ -72,6 +82,9 @@ def head_im(name, blink=0.0, mouth='smile', look=0.0):
     elif hs == 'side':
         d.chord(S(cx - r - 2, cy - r - 4, cx + r + 2, cy + 20), 180, 360, fill=hair, outline=OUT, width=4 * SS)
         d.polygon(S(cx - r + 6, cy - 14, cx + 30, cy - 30, cx + r - 2, cy - 4, cx + r - 4, cy - 30), fill=hair)
+    elif hs in ('long', 'bob', 'pony'):
+        d.chord(S(cx - r - 2, cy - r - 4, cx + r + 2, cy + 24), 180, 360, fill=hair, outline=OUT, width=4 * SS)
+        d.polygon(S(cx - r + 4, cy - 10, cx - 10, cy - 34, cx + 20, cy - 16, cx + r - 4, cy - 26, cx + r - 2, cy - 40, cx - r + 2, cy - 40), fill=hair)
     elif hs == 'short':
         d.chord(S(cx - r, cy - r - 2, cx + r, cy + 6), 185, 355, fill=hair, outline=OUT, width=4 * SS)
     elif hs == 'curly':
@@ -94,6 +107,11 @@ def head_im(name, blink=0.0, mouth='smile', look=0.0):
         d.rounded_rectangle(S(cx + 6, ey - 14, cx + 48, ey + 14), 8 * SS, fill=(15, 15, 25), outline=OUT, width=3 * SS)
         d.line(S(cx - 6, ey - 6, cx + 6, ey - 6), fill=OUT, width=4 * SS)
         d.line(S(cx - 40, ey - 8, cx - 28, ey - 8), fill=(120, 120, 150), width=3 * SS)
+    if c.get('acc') == 'lips':
+        for sx in (-1, 1):
+            x = cx + sx * ex; d.line(S(x + sx * 10, ey - 12, x + sx * 18, ey - 20), fill=OUT, width=3 * SS)
+    if c.get('acc') == 'beard':
+        d.chord(S(cx - r + 4, cy - 10, cx + r - 4, cy + r + 6), 0, 180, fill=hair, outline=OUT, width=4 * SS)
     # cheeks
     d.ellipse(S(cx - 46, cy + 22, cx - 30, cy + 32), fill=(255, 150, 150, 120))
     d.ellipse(S(cx + 30, cy + 22, cx + 46, cy + 32), fill=(255, 150, 150, 120))
@@ -147,6 +165,15 @@ def prop_im(kind):
     elif kind == 'flag':
         d.line(S(20, 6, 20, 106), fill=OUT, width=5 * SS)
         d.polygon(S(22, 8, 88, 22, 22, 46), fill=(255, 150, 60), outline=OUT, width=3 * SS)
+    elif kind == 'can':
+        d.rounded_rectangle(S(28, 24, 62, 100), 8 * SS, fill=(30, 200, 120), outline=OUT, width=4 * SS)
+        d.rectangle(S(30, 50, 60, 70), fill=(240, 240, 240))
+    elif kind == 'wine':
+        d.polygon(S(22, 20, 68, 20, 60, 56, 30, 56), fill=(180, 20, 60, 230), outline=OUT, width=4 * SS)
+        d.line(S(45, 56, 45, 96), fill=OUT, width=4 * SS); d.line(S(30, 98, 60, 98), fill=OUT, width=5 * SS)
+    elif kind == 'phone':
+        d.rounded_rectangle(S(26, 20, 64, 96), 8 * SS, fill=(30, 30, 40), outline=OUT, width=4 * SS)
+        d.rectangle(S(31, 28, 59, 86), fill=(120, 170, 255))
     elif kind == 'key':
         d.ellipse(S(16, 20, 52, 56), outline=(230, 190, 60), width=8 * SS)
         d.line(S(48, 50, 80, 88), fill=(230, 190, 60), width=8 * SS); d.line(S(68, 76, 60, 84), fill=(230, 190, 60), width=6 * SS)
